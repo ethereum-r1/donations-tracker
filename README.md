@@ -15,5 +15,5 @@ Simple backend microservice in rust that is responsible for:
 ## run
 
 ```
-docker-compose up --build
+sudo docker-compose up --build
 ```

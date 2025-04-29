@@ -61,7 +61,7 @@ impl<P: Provider> Checker<P> {
 
     pub async fn check_transfers(&self) -> Result<()> {
         let normal_url = format!(
-            "https://api.etherscan.io/api?module=account&action=txlist&address={}&startblock=0&endblock=99999999&sort=asc&apikey={}",
+            "https://api.etherscan.io/v2/api?chainid=1&module=account&action=txlist&address={}&startblock=0&endblock=99999999&sort=asc&apikey={}",
             self.target_address,
             self.etherscan_api_key
         );
@@ -76,7 +76,7 @@ impl<P: Provider> Checker<P> {
 
         // Fetch internal transactions
         let internal_url = format!(
-            "https://api.etherscan.io/api?module=account&action=txlistinternal&address={}&startblock=0&endblock=99999999&sort=asc&apikey={}",
+            "https://api.etherscan.io/v2/api?chainid=1&module=account&action=txlistinternal&address={}&startblock=0&endblock=99999999&sort=asc&apikey={}",
             self.target_address,
             self.etherscan_api_key
         );

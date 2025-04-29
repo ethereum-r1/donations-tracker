@@ -23,6 +23,7 @@ services:
     ports:
       - "8000:8000"
     restart: always
+    command: ["./wait-for-it.sh", "db:5432", "--", "./app"]
 
 volumes:
   db_data:
