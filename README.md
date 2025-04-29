@@ -17,3 +17,5 @@ Simple backend microservice in rust that is responsible for:
 ```
 sudo docker-compose up --build
 ```
+
+(^on linux, on mac `docker compose up --build`)
