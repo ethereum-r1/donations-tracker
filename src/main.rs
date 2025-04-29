@@ -12,6 +12,7 @@ use rocket::http::Status;
 use rocket::response::status::Custom;
 use rocket::{serde::json::Json, State};
 use sql::{DbClient, Transfer};
+use tokio::time::Duration;
 use sqlx::PgPool;
 use std::env;
 use url::Url;
@@ -36,20 +37,32 @@ async fn health() -> &'static str {
 async fn main() -> eyre::Result<()> {
     dotenv().ok();
 
-    let etherscan_api_key = env::var("ETHERSCAN_API_KEY")?;
-    let rpc_url_string = env::var("RPC_URL")?;
+    let etherscan_api_key = env::var("ETHERSCAN_API_KEY").expect("❌ Missing ETHERSCAN_API_KEY");
+    let rpc_url_string = env::var("RPC_URL").expect("❌ Missing RPC_URL");
+    let database_url = env::var("DATABASE_URL").expect("❌ Missing DATABASE_URL");
+    let target_address = env::var("TARGET_ADDRESS").expect("❌ Missing TARGET_ADDRESS");
+
     let rpc_url = Url::parse(&rpc_url_string)?;
 
     let provider = ProviderBuilder::new().connect_http(rpc_url);
 
-    let database_url = env::var("DATABASE_URL")?;
-    println!("connecting to db...");
-    let pg_pool = PgPool::connect(&database_url).await?;
+    let pg_pool = loop {
+        println!("⏳ Attempting to connect to Postgres...");
+        match PgPool::connect(&database_url).await {
+            Ok(pool) => {
+                println!("✅ Connected to Postgres!");
+                break pool;
+            },
+            Err(e) => {
+                eprintln!("⚠️ Failed to connect to Postgres: {e}");
+                tokio::time::sleep(Duration::from_secs(2)).await;
+            }
+        }
+    };
     println!("running migrations...");
     sqlx::migrate!().run(&pg_pool).await?;
     let pg_client = DbClient::new(pg_pool.clone());
 
-    let target_address = env::var("TARGET_ADDRESS")?;
     let client = Client::new();
 
     println!("initializing checker...");
