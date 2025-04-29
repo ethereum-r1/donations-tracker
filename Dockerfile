@@ -30,11 +30,7 @@ RUN apt-get update && apt-get install -y libssl-dev ca-certificates && rm -rf /v
 WORKDIR /app
 COPY --from=builder /app/target/release/transfer-tracker-service ./app
 
-# ✅ Copy wait-for-it.sh into the final container
-COPY wait-for-it.sh /wait-for-it.sh
-
-# Make sure it's executable
-RUN chmod +x /wait-for-it.sh
+RUN chmod +x ./app
 
 ENV ROCKET_ADDRESS=0.0.0.0
 ENV ROCKET_PORT=8000
