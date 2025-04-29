@@ -1,0 +1,20 @@
+[package]
+name = "transfer-tracker-service"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+dotenv = "0.15"
+alloy = { version = "0.15.6", features = ["full"] }
+eyre = "0.6" # for easier error handling
+hex = "0.4" # maybe useful to decode hex
+url = "2.5" # for URL parsing
+tiny-keccak = "1.4.2"
+sha2 = "0.10" # for hashing
+postgres = "0.17.2"
+sqlx = { version = "0.7.4", features = ["postgres", "runtime-tokio", "runtime-tokio-native-tls", "time", "chrono"] }
+rocket = { version = "0.5.1", features = ["json", "tls"] }

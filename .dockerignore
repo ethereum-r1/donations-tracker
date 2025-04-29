@@ -1,0 +1,23 @@
+# Ignore target directory (build artifacts)
+target/
+
+# Ignore local config and secrets
+.env
+
+# Ignore git metadata
+.git
+.gitignore
+
+# Ignore IDE/editor files
+*.swp
+*.swo
+*.idea
+.vscode
+*.log
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore Docker local artifacts
+docker-compose.override.yml
