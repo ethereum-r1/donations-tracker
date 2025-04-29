@@ -1,6 +1,8 @@
 # donations tracker
 
-track donations to ethereum r1
+track ETH donations to ethereum r1
+
+(donation multisig: `eth:0xE73EaFBf9061f26Df4f09e08B53c459Df03E2b66`)
 
 ## TLDR
 
@@ -10,3 +12,8 @@ Simple backend microservice in rust that is responsible for:
 
 - exposes an http server to fetch the historical list of transfers
 
+## run
+
+```
+docker-compose up --build
+```
