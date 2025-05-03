@@ -274,7 +274,6 @@ impl<P: Provider> Checker<P> {
 /// Returns Some(name) or None if no reverse record.
 pub async fn resolve_ens_name<P: Provider>(provider: &P, address: Address) -> Option<String> {
     // ENS Registry address
-    println!("Resolving ENS name slowdown...");
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
     let ens_registry = Address::from_str("0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e").unwrap();
 
