@@ -47,7 +47,7 @@ async fn health() -> &'static str {
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     dotenv().ok();
-
+    println!("starting...");
     let etherscan_api_key = env::var("ETHERSCAN_API_KEY").expect("❌ Missing ETHERSCAN_API_KEY");
     let rpc_url_string = env::var("RPC_URL").expect("❌ Missing RPC_URL");
     let database_url = env::var("DATABASE_URL").expect("❌ Missing DATABASE_URL");
@@ -56,9 +56,12 @@ async fn main() -> eyre::Result<()> {
     let target_donation_address =
         env::var("TARGET_DONATION_ADDRESS").expect("❌ Missing TARGET_DONATION_ADDRESS");
     let start_block_str = env::var("START_BLOCK").expect("❌ Missing START_BLOCK");
+
     let start_block = start_block_str
         .parse::<u64>()
         .expect("❌ Invalid START_BLOCK");
+    let chain_id_str = env::var("CHAIN_ID").expect("❌ Missing CHAIN_ID");
+    let chain_id = chain_id_str.parse::<u64>().expect("❌ Invalid CHAIN_ID");
 
     let rpc_url = Url::parse(&rpc_url_string)?;
 
@@ -92,6 +95,7 @@ async fn main() -> eyre::Result<()> {
         client,
         pg_client.clone(),
         start_block,
+        chain_id,
     );
 
     // Spawn the background checker

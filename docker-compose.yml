@@ -22,6 +22,7 @@ services:
       TARGET_TRANSFER_ADDRESS: ${TARGET_TRANSFER_ADDRESS}
       TARGET_DONATION_ADDRESS: ${TARGET_DONATION_ADDRESS}
       START_BLOCK: ${START_BLOCK}
+      CHAIN_ID: ${CHAIN_ID}
     ports:
       - "8000:8000"
     restart: always

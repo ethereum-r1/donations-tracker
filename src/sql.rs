@@ -93,7 +93,7 @@ impl DbClient {
             ) VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT (hash_key) 
             DO UPDATE SET
-            removed = EXCLUDED.removed,
+            removed = EXCLUDED.removed
             "#,
         )
         .bind(removed)

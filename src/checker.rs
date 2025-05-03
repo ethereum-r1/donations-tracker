@@ -34,6 +34,7 @@ pub struct Checker<P: Provider> {
     pg_client: DbClient,
     provider: P,
     start_block: u64,
+    chain_id: u64,
     filter: Filter,
 }
 
@@ -52,6 +53,7 @@ impl<P: Provider> Checker<P> {
         http_client: Client,
         pg_client: DbClient,
         start_block: u64,
+        chain_id: u64,
     ) -> Self {
         Self {
             target_address: target_transfer_address.clone(),
@@ -64,6 +66,7 @@ impl<P: Provider> Checker<P> {
                 .address(vec![
                     Address::from_str(&target_donation_address.clone()).unwrap()
                 ]),
+            chain_id,
         }
     }
 
@@ -79,8 +82,7 @@ impl<P: Provider> Checker<P> {
             if let Err(e) = self.process_new_logs().await {
                 println!("Error checking donations: {}", e);
             }
-            // TODO: add live donations log processing here
-            tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+            tokio::time::sleep(tokio::time::Duration::from_secs(20)).await;
         }
     }
 
@@ -134,7 +136,8 @@ impl<P: Provider> Checker<P> {
 
     pub async fn check_transfers(&self) -> Result<()> {
         let normal_url = format!(
-            "https://api.etherscan.io/v2/api?chainid=1&module=account&action=txlist&address={}&startblock=0&endblock=99999999&sort=asc&apikey={}",
+            "https://api.etherscan.io/v2/api?chainid={}&module=account&action=txlist&address={}&startblock=0&endblock=99999999&sort=asc&apikey={}",
+            self.chain_id,
             self.target_address,
             self.etherscan_api_key
         );
@@ -149,7 +152,8 @@ impl<P: Provider> Checker<P> {
 
         // Fetch internal transactions
         let internal_url = format!(
-            "https://api.etherscan.io/v2/api?chainid=1&module=account&action=txlistinternal&address={}&startblock=0&endblock=99999999&sort=asc&apikey={}",
+            "https://api.etherscan.io/v2/api?chainid={}&module=account&action=txlistinternal&address={}&startblock=0&endblock=99999999&sort=asc&apikey={}",
+            self.chain_id,
             self.target_address,
             self.etherscan_api_key
         );
@@ -270,6 +274,8 @@ impl<P: Provider> Checker<P> {
 /// Returns Some(name) or None if no reverse record.
 pub async fn resolve_ens_name<P: Provider>(provider: &P, address: Address) -> Option<String> {
     // ENS Registry address
+    println!("Resolving ENS name slowdown...");
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
     let ens_registry = Address::from_str("0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e").unwrap();
 
     // Step 1: Create the reverse record name
