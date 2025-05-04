@@ -46,6 +46,8 @@ async fn health() -> &'static str {
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
+    println!("waiting for 10 seconds...");
+    tokio::time::sleep(Duration::from_secs(10)).await;
     println!("loading dotenv...");
     dotenv().ok();
     println!("starting...");
