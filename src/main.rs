@@ -52,10 +52,8 @@ async fn main() -> eyre::Result<()> {
     dotenv().ok();
     println!("starting...");
     let etherscan_api_key = env::var("ETHERSCAN_API_KEY").expect("❌ Missing ETHERSCAN_API_KEY");
-    let rpc_url_transfer_str = env::var("RPC_URL_TRANSFER").expect("❌ Missing RPC_URL_TRANSFER");
-    let rpc_url_transfer = Url::parse(&rpc_url_transfer_str)?;
-    let rpc_url_donation_str = env::var("RPC_URL_DONATION").expect("❌ Missing RPC_URL_DONATION");
-    let rpc_url_donation = Url::parse(&rpc_url_donation_str)?;
+    let rpc_url_str = env::var("RPC_URL").expect("❌ Missing RPC_URL");
+    let rpc_url = Url::parse(&rpc_url_str)?;
     let database_url = env::var("DATABASE_URL").expect("❌ Missing DATABASE_URL");
     let target_transfer_address =
         env::var("TARGET_TRANSFER_ADDRESS").expect("❌ Missing TARGET_TRANSFER_ADDRESS");
@@ -67,8 +65,7 @@ async fn main() -> eyre::Result<()> {
         .parse::<u64>()
         .expect("❌ Invalid START_BLOCK");
 
-    let provider_transfer = ProviderBuilder::new().connect_http(rpc_url_transfer);
-    let provider_donation = ProviderBuilder::new().connect_http(rpc_url_donation);
+    let provider = ProviderBuilder::new().connect_http(rpc_url);
 
     let pg_pool = loop {
         println!("⏳ Attempting to connect to Postgres...");
@@ -94,8 +91,7 @@ async fn main() -> eyre::Result<()> {
         target_transfer_address,
         target_donation_address,
         etherscan_api_key,
-        provider_transfer,
-        provider_donation,
+        provider,
         client,
         pg_client.clone(),
         start_block,

@@ -31,9 +31,8 @@ pub struct Checker<P: Provider> {
     pg_client: DbClient,
     transfer_address: String,
     etherscan_api_key: String,
-    provider_transfer: P,
+    provider: P,
     http_client: Client,
-    provider_donation: P,
     start_block: u64,
     filter: Filter,
 }
@@ -49,8 +48,7 @@ impl<P: Provider> Checker<P> {
         transfer_address: String,
         donation_address: String,
         etherscan_api_key: String,
-        provider_transfer: P,
-        provider_donation: P,
+        provider: P,
         http_client: Client,
         pg_client: DbClient,
         start_block: u64,
@@ -59,9 +57,8 @@ impl<P: Provider> Checker<P> {
             pg_client,
             transfer_address,
             etherscan_api_key,
-            provider_transfer,
+            provider,
             http_client,
-            provider_donation,
             start_block,
             filter: Filter::new()
                 .address(vec![
@@ -87,7 +84,7 @@ impl<P: Provider> Checker<P> {
     }
 
     pub async fn process_past_logs(&self) -> Result<()> {
-        let block = self.provider_donation.get_block_by_number(Latest).await?;
+        let block = self.provider.get_block_by_number(Latest).await?;
         let mut current_end_block = block.unwrap().header.number;
 
         while self.start_block < current_end_block {
@@ -104,7 +101,7 @@ impl<P: Provider> Checker<P> {
                 .to_block(current_end_block);
 
             // Fetch logs
-            let logs = self.provider_donation.get_logs(&filter).await?;
+            let logs = self.provider.get_logs(&filter).await?;
             for log in logs {
                 self.process_donation_event(log.clone()).await?;
             }
@@ -115,7 +112,7 @@ impl<P: Provider> Checker<P> {
     }
 
     pub async fn process_new_logs(&self) -> Result<()> {
-        let block = self.provider_donation.get_block_by_number(Latest).await?;
+        let block = self.provider.get_block_by_number(Latest).await?;
         let current_end_block = block.unwrap().header.number;
         let current_start_block = if current_end_block >= 64 {
             current_end_block - 64
@@ -127,7 +124,7 @@ impl<P: Provider> Checker<P> {
             .clone()
             .from_block(current_start_block)
             .to_block(current_end_block);
-        let logs = self.provider_donation.get_logs(&filter).await?;
+        let logs = self.provider.get_logs(&filter).await?;
         for log in logs {
             self.process_donation_event(log.clone()).await?;
         }
@@ -194,7 +191,7 @@ impl<P: Provider> Checker<P> {
 
                     // If it's a new transaction: resolve ENS
                     let from_address = Address::from_str(&tx.from)?;
-                    let from_display = match resolve_ens_name(&self.provider_transfer, from_address).await {
+                    let from_display = match resolve_ens_name(&self.provider, from_address).await {
                         Some(name) => name,
                         None => format!("{:?}", from_address),
                     };
@@ -236,7 +233,7 @@ impl<P: Provider> Checker<P> {
                 if !exists {
                     // If it's a new transaction: resolve ENS
                     from_display =
-                        match resolve_ens_name(&self.provider_donation, decoded_log.inner.donor).await {
+                        match resolve_ens_name(&self.provider, decoded_log.inner.donor).await {
                             Some(name) => name,
                             None => donor.clone(),
                         };
