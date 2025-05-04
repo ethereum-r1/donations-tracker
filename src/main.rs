@@ -46,10 +46,14 @@ async fn health() -> &'static str {
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
+    println!("loading dotenv...");
     dotenv().ok();
     println!("starting...");
     let etherscan_api_key = env::var("ETHERSCAN_API_KEY").expect("❌ Missing ETHERSCAN_API_KEY");
-    let rpc_url_string = env::var("RPC_URL").expect("❌ Missing RPC_URL");
+    let rpc_url_transfer_str = env::var("RPC_URL_TRANSFER").expect("❌ Missing RPC_URL_TRANSFER");
+    let rpc_url_transfer = Url::parse(&rpc_url_transfer_str)?;
+    let rpc_url_donation_str = env::var("RPC_URL_DONATION").expect("❌ Missing RPC_URL_DONATION");
+    let rpc_url_donation = Url::parse(&rpc_url_donation_str)?;
     let database_url = env::var("DATABASE_URL").expect("❌ Missing DATABASE_URL");
     let target_transfer_address =
         env::var("TARGET_TRANSFER_ADDRESS").expect("❌ Missing TARGET_TRANSFER_ADDRESS");
@@ -60,12 +64,9 @@ async fn main() -> eyre::Result<()> {
     let start_block = start_block_str
         .parse::<u64>()
         .expect("❌ Invalid START_BLOCK");
-    let chain_id_str = env::var("CHAIN_ID").expect("❌ Missing CHAIN_ID");
-    let chain_id = chain_id_str.parse::<u64>().expect("❌ Invalid CHAIN_ID");
 
-    let rpc_url = Url::parse(&rpc_url_string)?;
-
-    let provider = ProviderBuilder::new().connect_http(rpc_url);
+    let provider_transfer = ProviderBuilder::new().connect_http(rpc_url_transfer);
+    let provider_donation = ProviderBuilder::new().connect_http(rpc_url_donation);
 
     let pg_pool = loop {
         println!("⏳ Attempting to connect to Postgres...");
@@ -91,11 +92,11 @@ async fn main() -> eyre::Result<()> {
         target_transfer_address,
         target_donation_address,
         etherscan_api_key,
-        provider,
+        provider_transfer,
+        provider_donation,
         client,
         pg_client.clone(),
         start_block,
-        chain_id,
     );
 
     // Spawn the background checker

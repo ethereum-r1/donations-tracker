@@ -28,13 +28,13 @@ struct EtherscanResponse {
 }
 
 pub struct Checker<P: Provider> {
-    target_address: String,
-    etherscan_api_key: String,
-    http_client: Client,
     pg_client: DbClient,
-    provider: P,
+    transfer_address: String,
+    etherscan_api_key: String,
+    provider_transfer: P,
+    http_client: Client,
+    provider_donation: P,
     start_block: u64,
-    chain_id: u64,
     filter: Filter,
 }
 
@@ -46,27 +46,27 @@ sol! {
 
 impl<P: Provider> Checker<P> {
     pub fn new(
-        target_transfer_address: String,
-        target_donation_address: String,
+        transfer_address: String,
+        donation_address: String,
         etherscan_api_key: String,
-        provider: P,
+        provider_transfer: P,
+        provider_donation: P,
         http_client: Client,
         pg_client: DbClient,
         start_block: u64,
-        chain_id: u64,
     ) -> Self {
         Self {
-            target_address: target_transfer_address.clone(),
-            etherscan_api_key,
-            provider,
-            http_client,
             pg_client,
+            transfer_address,
+            etherscan_api_key,
+            provider_transfer,
+            http_client,
+            provider_donation,
             start_block,
             filter: Filter::new()
                 .address(vec![
-                    Address::from_str(&target_donation_address.clone()).unwrap()
+                    Address::from_str(&donation_address.clone()).unwrap()
                 ]),
-            chain_id,
         }
     }
 
@@ -87,7 +87,7 @@ impl<P: Provider> Checker<P> {
     }
 
     pub async fn process_past_logs(&self) -> Result<()> {
-        let block = self.provider.get_block_by_number(Latest).await?;
+        let block = self.provider_donation.get_block_by_number(Latest).await?;
         let mut current_end_block = block.unwrap().header.number;
 
         while self.start_block < current_end_block {
@@ -104,7 +104,7 @@ impl<P: Provider> Checker<P> {
                 .to_block(current_end_block);
 
             // Fetch logs
-            let logs = self.provider.get_logs(&filter).await?;
+            let logs = self.provider_donation.get_logs(&filter).await?;
             for log in logs {
                 self.process_donation_event(log.clone()).await?;
             }
@@ -115,7 +115,7 @@ impl<P: Provider> Checker<P> {
     }
 
     pub async fn process_new_logs(&self) -> Result<()> {
-        let block = self.provider.get_block_by_number(Latest).await?;
+        let block = self.provider_donation.get_block_by_number(Latest).await?;
         let current_end_block = block.unwrap().header.number;
         let current_start_block = if current_end_block >= 64 {
             current_end_block - 64
@@ -127,7 +127,7 @@ impl<P: Provider> Checker<P> {
             .clone()
             .from_block(current_start_block)
             .to_block(current_end_block);
-        let logs = self.provider.get_logs(&filter).await?;
+        let logs = self.provider_donation.get_logs(&filter).await?;
         for log in logs {
             self.process_donation_event(log.clone()).await?;
         }
@@ -136,9 +136,8 @@ impl<P: Provider> Checker<P> {
 
     pub async fn check_transfers(&self) -> Result<()> {
         let normal_url = format!(
-            "https://api.etherscan.io/v2/api?chainid={}&module=account&action=txlist&address={}&startblock=0&endblock=99999999&sort=asc&apikey={}",
-            self.chain_id,
-            self.target_address,
+            "https://api.etherscan.io/v2/api?chainid=1&module=account&action=txlist&address={}&startblock=0&endblock=99999999&sort=asc&apikey={}",
+            self.transfer_address,
             self.etherscan_api_key
         );
 
@@ -152,9 +151,8 @@ impl<P: Provider> Checker<P> {
 
         // Fetch internal transactions
         let internal_url = format!(
-            "https://api.etherscan.io/v2/api?chainid={}&module=account&action=txlistinternal&address={}&startblock=0&endblock=99999999&sort=asc&apikey={}",
-            self.chain_id,
-            self.target_address,
+            "https://api.etherscan.io/v2/api?chainid=1&module=account&action=txlistinternal&address={}&startblock=0&endblock=99999999&sort=asc&apikey={}",
+            self.transfer_address,
             self.etherscan_api_key
         );
 
@@ -179,7 +177,7 @@ impl<P: Provider> Checker<P> {
 
         // Handle normal txs
         for tx in all_txs {
-            if tx.to.to_lowercase() == self.target_address.to_lowercase() {
+            if tx.to.to_lowercase() == self.transfer_address.to_lowercase() {
                 let value_in_wei: u128 = tx.value.parse().unwrap_or(0);
                 if value_in_wei > 0 {
                     // skip failed txs
@@ -196,7 +194,7 @@ impl<P: Provider> Checker<P> {
 
                     // If it's a new transaction: resolve ENS
                     let from_address = Address::from_str(&tx.from)?;
-                    let from_display = match resolve_ens_name(&self.provider, from_address).await {
+                    let from_display = match resolve_ens_name(&self.provider_transfer, from_address).await {
                         Some(name) => name,
                         None => format!("{:?}", from_address),
                     };
@@ -238,7 +236,7 @@ impl<P: Provider> Checker<P> {
                 if !exists {
                     // If it's a new transaction: resolve ENS
                     from_display =
-                        match resolve_ens_name(&self.provider, decoded_log.inner.donor).await {
+                        match resolve_ens_name(&self.provider_donation, decoded_log.inner.donor).await {
                             Some(name) => name,
                             None => donor.clone(),
                         };
