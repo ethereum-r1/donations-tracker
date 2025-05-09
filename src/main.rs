@@ -12,15 +12,26 @@ use rocket::http::Status;
 use rocket::response::status::Custom;
 use rocket::{serde::json::Json, State};
 use sql::{DbClient, Transfer};
-use tokio::time::Duration;
 use sqlx::PgPool;
 use std::env;
+use tokio::time::Duration;
 use url::Url;
 
 #[get("/transfers")]
 async fn get_transfers(db: &State<DbClient>) -> Result<Json<Vec<Transfer>>, Custom<String>> {
     match db.get_transfers().await {
         Ok(transfers) => Ok(Json(transfers)),
+        Err(e) => Err(Custom(
+            Status::InternalServerError,
+            format!("Database error: {}", e),
+        )),
+    }
+}
+
+#[get("/donations")]
+async fn get_donations(db: &State<DbClient>) -> Result<Json<Vec<Transfer>>, Custom<String>> {
+    match db.get_donations().await {
+        Ok(donations) => Ok(Json(donations)),
         Err(e) => Err(Custom(
             Status::InternalServerError,
             format!("Database error: {}", e),
@@ -35,14 +46,24 @@ async fn health() -> &'static str {
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
+    println!("waiting for 10 seconds...");
+    tokio::time::sleep(Duration::from_secs(10)).await;
+    println!("loading dotenv...");
     dotenv().ok();
-
+    println!("starting...");
     let etherscan_api_key = env::var("ETHERSCAN_API_KEY").expect("❌ Missing ETHERSCAN_API_KEY");
-    let rpc_url_string = env::var("RPC_URL").expect("❌ Missing RPC_URL");
+    let rpc_url_str = env::var("RPC_URL").expect("❌ Missing RPC_URL");
+    let rpc_url = Url::parse(&rpc_url_str)?;
     let database_url = env::var("DATABASE_URL").expect("❌ Missing DATABASE_URL");
-    let target_address = env::var("TARGET_ADDRESS").expect("❌ Missing TARGET_ADDRESS");
+    let target_transfer_address =
+        env::var("TARGET_TRANSFER_ADDRESS").expect("❌ Missing TARGET_TRANSFER_ADDRESS");
+    let target_donation_address =
+        env::var("TARGET_DONATION_ADDRESS").expect("❌ Missing TARGET_DONATION_ADDRESS");
+    let start_block_str = env::var("START_BLOCK").expect("❌ Missing START_BLOCK");
 
-    let rpc_url = Url::parse(&rpc_url_string)?;
+    let start_block = start_block_str
+        .parse::<u64>()
+        .expect("❌ Invalid START_BLOCK");
 
     let provider = ProviderBuilder::new().connect_http(rpc_url);
 
@@ -52,7 +73,7 @@ async fn main() -> eyre::Result<()> {
             Ok(pool) => {
                 println!("✅ Connected to Postgres!");
                 break pool;
-            },
+            }
             Err(e) => {
                 eprintln!("⚠️ Failed to connect to Postgres: {e}");
                 tokio::time::sleep(Duration::from_secs(2)).await;
@@ -67,11 +88,13 @@ async fn main() -> eyre::Result<()> {
 
     println!("initializing checker...");
     let checker = Checker::new(
-        target_address,
+        target_transfer_address,
+        target_donation_address,
         etherscan_api_key,
         provider,
         client,
         pg_client.clone(),
+        start_block,
     );
 
     // Spawn the background checker
@@ -82,10 +105,10 @@ async fn main() -> eyre::Result<()> {
     println!("launching rocket server...");
     // Launch Rocket server
     let result = rocket::build()
-    .manage(pg_client)
-    .mount("/", routes![get_transfers, health])
-    .launch()
-    .await;
+        .manage(pg_client)
+        .mount("/", routes![get_transfers, get_donations, health])
+        .launch()
+        .await;
 
     match result {
         Ok(_) => println!("🚀 Rocket launched successfully."),
